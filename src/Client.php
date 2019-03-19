@@ -169,7 +169,7 @@ class Client
 
         // if ZLIB is enabled, let the client by default accept compressed responses
         if (function_exists('gzinflate') || (
-                function_exists('curl_init') && (($info = curl_version()) &&
+            function_exists('curl_init') && (($info = curl_version()) &&
                     ((is_string($info) && strpos($info, 'zlib') !== null) || isset($info['libz_version'])))
             )
         ) {
@@ -563,12 +563,40 @@ class Client
      * @param string $method
      * @return Response
      */
-    protected function sendPayloadHTTP10($req, $server, $port, $timeout = 0, $username = '', $password = '',
-        $authType = 1, $proxyHost = '', $proxyPort = 0, $proxyUsername = '', $proxyPassword = '', $proxyAuthType = 1,
-        $method='http')
-    {
-        return $this->sendPayloadSocket($req, $server, $port, $timeout, $username, $password, $authType, null, null,
-            null, null, $proxyHost, $proxyPort, $proxyUsername, $proxyPassword, $proxyAuthType, $method);
+    protected function sendPayloadHTTP10(
+        $req,
+        $server,
+        $port,
+        $timeout = 0,
+        $username = '',
+        $password = '',
+        $authType = 1,
+        $proxyHost = '',
+        $proxyPort = 0,
+        $proxyUsername = '',
+        $proxyPassword = '',
+        $proxyAuthType = 1,
+        $method='http'
+    ) {
+        return $this->sendPayloadSocket(
+            $req,
+            $server,
+            $port,
+            $timeout,
+            $username,
+            $password,
+            $authType,
+            null,
+            null,
+            null,
+            null,
+            $proxyHost,
+            $proxyPort,
+            $proxyUsername,
+            $proxyPassword,
+            $proxyAuthType,
+            $method
+        );
     }
 
     /**
@@ -595,14 +623,51 @@ class Client
      * @param int $sslVersion
      * @return Response
      */
-    protected function sendPayloadHTTPS($req, $server, $port, $timeout = 0, $username = '',  $password = '',
-        $authType = 1, $cert = '', $certPass = '', $caCert = '', $caCertDir = '', $proxyHost = '', $proxyPort = 0,
-        $proxyUsername = '', $proxyPassword = '', $proxyAuthType = 1, $keepAlive = false, $key = '', $keyPass = '',
-        $sslVersion = 0)
-    {
-        return $this->sendPayloadCURL($req, $server, $port, $timeout, $username,
-            $password, $authType, $cert, $certPass, $caCert, $caCertDir, $proxyHost, $proxyPort,
-            $proxyUsername, $proxyPassword, $proxyAuthType, 'https', $keepAlive, $key, $keyPass, $sslVersion);
+    protected function sendPayloadHTTPS(
+        $req,
+        $server,
+        $port,
+        $timeout = 0,
+        $username = '',
+        $password = '',
+        $authType = 1,
+        $cert = '',
+        $certPass = '',
+        $caCert = '',
+        $caCertDir = '',
+        $proxyHost = '',
+        $proxyPort = 0,
+        $proxyUsername = '',
+        $proxyPassword = '',
+        $proxyAuthType = 1,
+        $keepAlive = false,
+        $key = '',
+        $keyPass = '',
+        $sslVersion = 0
+    ) {
+        return $this->sendPayloadCURL(
+            $req,
+            $server,
+            $port,
+            $timeout,
+            $username,
+            $password,
+            $authType,
+            $cert,
+            $certPass,
+            $caCert,
+            $caCertDir,
+            $proxyHost,
+            $proxyPort,
+            $proxyUsername,
+            $proxyPassword,
+            $proxyAuthType,
+            'https',
+            $keepAlive,
+            $key,
+            $keyPass,
+            $sslVersion
+        );
     }
 
     /**
@@ -628,13 +693,30 @@ class Client
      * @param int $sslVersion @todo not implemented yet. See http://php.net/manual/en/migration56.openssl.php
      * @return Response
      */
-    protected function sendPayloadSocket($req, $server, $port, $timeout = 0, $username = '', $password = '',
-        $authType = 1, $cert = '', $certPass = '', $caCert = '', $caCertDir = '', $proxyHost = '', $proxyPort = 0,
-        $proxyUsername = '', $proxyPassword = '', $proxyAuthType = 1, $method='http', $key = '', $keyPass = '',
-        $sslVersion = 0)
-    {
+    protected function sendPayloadSocket(
+        $req,
+        $server,
+        $port,
+        $timeout = 0,
+        $username = '',
+        $password = '',
+        $authType = 1,
+        $cert = '',
+        $certPass = '',
+        $caCert = '',
+        $caCertDir = '',
+        $proxyHost = '',
+        $proxyPort = 0,
+        $proxyUsername = '',
+        $proxyPassword = '',
+        $proxyAuthType = 1,
+        $method='http',
+        $key = '',
+        $keyPass = '',
+        $sslVersion = 0
+    ) {
         if ($port == 0) {
-            $port = ( $method === 'https' ) ? 443 : 80;
+            $port = ($method === 'https') ? 443 : 80;
         }
 
         // Only create the payload if it was not created previously
@@ -683,7 +765,7 @@ class Client
             $connectServer = $proxyHost;
             $connectPort = $proxyPort;
             $transport = 'tcp';
-            $uri = 'http://' . $server . ':' . $port . $this->path;
+            $uri = 'http://' . $server . ':' . $port . $this->path . $req->path;
             if ($proxyUsername != '') {
                 if ($proxyAuthType != 1) {
                     error_log('XML-RPC: ' . __METHOD__ . ': warning. Only Basic auth to proxy is supported with HTTP 1.0');
@@ -693,8 +775,8 @@ class Client
         } else {
             $connectServer = $server;
             $connectPort = $port;
-            $transport = ( $method === 'https' ) ? 'tls' : 'tcp';
-            $uri = $this->path;
+            $transport = ($method === 'https') ? 'tls' : 'tcp';
+            $uri = $this->path . $req->path;
         }
 
         // Cookie generation, as per rfc2965 (version 1 cookies) or
@@ -777,8 +859,14 @@ class Client
         $this->errno = 0;
         $this->errstr = '';
 
-        $fp = @stream_socket_client("$transport://$connectServer:$connectPort", $this->errno, $this->errstr, $connectTimeout,
-            STREAM_CLIENT_CONNECT, $context);
+        $fp = @stream_socket_client(
+            "$transport://$connectServer:$connectPort",
+            $this->errno,
+            $this->errstr,
+            $connectTimeout,
+            STREAM_CLIENT_CONNECT,
+            $context
+        );
         if ($fp) {
             if ($timeout > 0) {
                 stream_set_timeout($fp, $timeout);
@@ -845,11 +933,29 @@ class Client
      * @param int $sslVersion
      * @return Response
      */
-    protected function sendPayloadCURL($req, $server, $port, $timeout = 0, $username = '', $password = '',
-        $authType = 1, $cert = '', $certPass = '', $caCert = '', $caCertDir = '', $proxyHost = '', $proxyPort = 0,
-        $proxyUsername = '', $proxyPassword = '', $proxyAuthType = 1, $method = 'https', $keepAlive = false, $key = '',
-        $keyPass = '', $sslVersion = 0)
-    {
+    protected function sendPayloadCURL(
+        $req,
+        $server,
+        $port,
+        $timeout = 0,
+        $username = '',
+        $password = '',
+        $authType = 1,
+        $cert = '',
+        $certPass = '',
+        $caCert = '',
+        $caCertDir = '',
+        $proxyHost = '',
+        $proxyPort = 0,
+        $proxyUsername = '',
+        $proxyPassword = '',
+        $proxyAuthType = 1,
+        $method = 'https',
+        $keepAlive = false,
+        $key = '',
+        $keyPass = '',
+        $sslVersion = 0
+    ) {
         if (!function_exists('curl_init')) {
             $this->errstr = 'CURL unavailable on this install';
             return new Response(0, PhpXmlRpc::$xmlrpcerr['no_curl'], PhpXmlRpc::$xmlrpcstr['no_curl']);
@@ -906,7 +1012,7 @@ class Client
             } else {
                 $protocol = $method;
             }
-            $curl = curl_init($protocol . '://' . $server . ':' . $port . $this->path);
+            $curl = curl_init($protocol . '://' . $server . ':' . $port . $this->path . $req->path);
             if ($keepAlive) {
                 $this->xmlrpc_curl_handle = $curl;
             }
@@ -1247,7 +1353,7 @@ class Client
             }
 
             $response = array();
-            foreach($rets as $val) {
+            foreach ($rets as $val) {
                 switch ($val->kindOf()) {
                     case 'array':
                         if ($val->count() != 1) {

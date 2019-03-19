@@ -16,6 +16,7 @@ class Request
     /// @todo: do these need to be public?
     public $payload;
     public $methodname;
+    public $path;
     public $params = array();
     public $debug = 0;
     public $content_type = 'text/xml';
@@ -26,13 +27,15 @@ class Request
     /**
      * @param string $methodName the name of the method to invoke
      * @param Value[] $params array of parameters to be passed to the method (NB: Value objects, not plain php values)
+     * @param string $path path to the HTTP endpoint of the method to invoke, relative to the Client's base path
      */
-    public function __construct($methodName, $params = array())
+    public function __construct($methodName, $params = array(), $path = '')
     {
         $this->methodname = $methodName;
         foreach ($params as $param) {
             $this->addParam($param);
         }
+        $this->path = $path;
     }
 
     public function xml_header($charsetEncoding = '')
@@ -58,7 +61,10 @@ class Request
         }
         $this->payload = $this->xml_header($charsetEncoding);
         $this->payload .= '<methodName>' . Charset::instance()->encodeEntities(
-            $this->methodname, PhpXmlRpc::$xmlrpc_internalencoding, $charsetEncoding) . "</methodName>\n";
+            $this->methodname,
+            PhpXmlRpc::$xmlrpc_internalencoding,
+            $charsetEncoding
+        ) . "</methodName>\n";
         $this->payload .= "<params>\n";
         foreach ($this->params as $p) {
             $this->payload .= "<param>\n" . $p->serialize($charsetEncoding) .
@@ -82,6 +88,22 @@ class Request
         }
 
         return $this->methodname;
+    }
+
+    /**
+     * Gets/sets the path to the HTTP endpoint of the method to invoke, relative to the Client's base path
+     *
+     * @param string $path the path of the endpoint (leave empty not to set it)
+     *
+     * @return string the path of the endpoint
+     */
+    public function path($path = '')
+    {
+        if ($path != '') {
+            $this->path = $path;
+        }
+
+        return $this->path;
     }
 
     /**
@@ -195,7 +217,7 @@ class Request
             $httpParser = new Http();
             try {
                 $this->httpResponse = $httpParser->parseResponseHeaders($data, $headersProcessed, $this->debug);
-            } catch(\Exception $e) {
+            } catch (\Exception $e) {
                 $r = new Response(0, $e->getCode(), $e->getMessage());
                 // failed processing of HTTP response headers
                 // save into response obj the full payload received, for debugging
@@ -293,9 +315,12 @@ class Request
             if ((xml_get_current_line_number($parser)) == 1) {
                 $errStr = 'XML error at line 1, check URL';
             } else {
-                $errStr = sprintf('XML error: %s at line %d, column %d',
+                $errStr = sprintf(
+                    'XML error: %s at line %d, column %d',
                     xml_error_string(xml_get_error_code($parser)),
-                    xml_get_current_line_number($parser), xml_get_current_column_number($parser));
+                    xml_get_current_line_number($parser),
+                    xml_get_current_column_number($parser)
+                );
             }
             error_log($errStr);
             $r = new Response(0, PhpXmlRpc::$xmlrpcerr['invalid_return'], PhpXmlRpc::$xmlrpcstr['invalid_return'] . ' ' . $errStr);
@@ -316,8 +341,11 @@ class Request
                 /// @todo echo something for user?
             }
 
-            $r = new Response(0, PhpXmlRpc::$xmlrpcerr['invalid_return'],
-                PhpXmlRpc::$xmlrpcstr['invalid_return'] . ' ' . $xmlRpcParser->_xh['isf_reason']);
+            $r = new Response(
+                0,
+                PhpXmlRpc::$xmlrpcerr['invalid_return'],
+                PhpXmlRpc::$xmlrpcstr['invalid_return'] . ' ' . $xmlRpcParser->_xh['isf_reason']
+            );
         }
         // third error check: parsing of the response has somehow gone boink.
         // NB: shall we omit this check, since we trust the parsing code?
@@ -325,8 +353,11 @@ class Request
             // something odd has happened
             // and it's time to generate a client side error
             // indicating something odd went on
-            $r = new Response(0, PhpXmlRpc::$xmlrpcerr['invalid_return'],
-                PhpXmlRpc::$xmlrpcstr['invalid_return']);
+            $r = new Response(
+                0,
+                PhpXmlRpc::$xmlrpcerr['invalid_return'],
+                PhpXmlRpc::$xmlrpcstr['invalid_return']
+            );
         } else {
             if ($this->debug > 1) {
                 Logger::instance()->debugMessage(
